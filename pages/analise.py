@@ -12,20 +12,22 @@ st.set_page_config(
 
 st.header("Análise de discurso parlamentar :classical_building: :bar_chart:")
 
-@st.cache_data
+
 def filter_dataframe(df, parlamentar, data_hora):
     filtered_df = df[(df.orador == parlamentar) & (df.dataHoraInicio == data_hora)]
     return filtered_df[["dataHoraInicio","tipoDiscurso","transcricao","contagemPalavras","faseEvento_titulo","orador","topicos","similar_topics","similarity","topic_1","topic_2","topic_3"]]
 
-@st.cache_data
+
 def filter_deputados(df, parlamentar):
-    df['nome'] = df['nome'].str.lower()
+    #df['nome'] = df['nome'].str.lower()
+    exclude_names = ['presidente', ' ']
+    df['nome'] = df['nome'].apply(lambda x: x.lower() if x not in exclude_names else x)
     filtered_deputados = df[(df.nome == parlamentar)]
     return filtered_deputados[["urlFoto"]]
 
 DATA_DEPUTADOS = ('deputados2023.csv')
 
-@st.cache_data
+
 def load_data_deputados():
     data_deputados = pd.read_csv(DATA_DEPUTADOS)
     return data_deputados
@@ -35,21 +37,17 @@ df_deputados = load_data_deputados()
 DATE_COLUMN = 'dataHoraInicio'
 DATA = ("discursos_2023_stream.csv")
 
-@st.cache_data
+
 def load_data():
     data = pd.read_csv(DATA)
     data[DATE_COLUMN] = pd.to_datetime(data[DATE_COLUMN])
     return data
 df = load_data()
     
-st.sidebar.subheader("Escolha um parlamentar")
-
-parlamentares = df.orador.unique()
+parlamentares = sorted(df['orador'].unique())
 selecao_parlamentares = st.sidebar.selectbox(
     "Selecione um parlamentar", options=parlamentares
 )
-
-st.sidebar.subheader("Escolha uma data / hora")
 
 data_hora = [x for x, y in zip(df.dataHoraInicio, df.orador) if y == selecao_parlamentares]
 selecao_data_hora = st.sidebar.selectbox(
@@ -72,30 +70,27 @@ st.subheader("Tipo")
 st.write(filtered_df["tipoDiscurso"].tolist()[0])
 st.subheader("Discurso")
 st.write(discurso)
-st.subheader("Tópico 1")
-st.write(filtered_df["topic_1"].tolist()[0])
-st.subheader("Tópico 2")
-st.write(filtered_df["topic_2"].tolist()[0])
-st.subheader("Tópico 3")
-st.write(filtered_df["topic_3"].tolist()[0])
-#for i in range(filtered_df["topic_1"]):
-#    df_topicos = pd.DataFrame(topic_model.get_topic(similar_topics[i]), columns=["Tópico", "Probabilidade"])
-#    st.write(df_topicos)
 
+df_topicos1 = pd.DataFrame(columns=['Tópico 1', 'Probabilidades 1'])
+pattern = r"\('(.*?)', (.*?)\)"
+for index, row in filtered_df.iterrows():
+    tuples = re.findall(pattern, row['topic_1'])
+    for tuple in tuples:
+        df_topicos1 = df_topicos1.append({'Tópico 1': tuple[0], 'Probabilidades 1': float(tuple[1])}, ignore_index=True)
 
+df_topicos2 = pd.DataFrame(columns=['Tópico 2', 'Probabilidades 2'])
+pattern = r"\('(.*?)', (.*?)\)"
+for index, row in filtered_df.iterrows():
+    tuples = re.findall(pattern, row['topic_2'])
+    for tuple in tuples:
+        df_topicos2 = df_topicos2.append({'Tópico 2': tuple[0], 'Probabilidades 2': float(tuple[1])}, ignore_index=True)
 
+df_topicos3 = pd.DataFrame(columns=['Tópico 3', 'Probabilidades 3'])
+pattern = r"\('(.*?)', (.*?)\)"
+for index, row in filtered_df.iterrows():
+    tuples = re.findall(pattern, row['topic_3'])
+    for tuple in tuples:
+        df_topicos3 = df_topicos3.append({'Tópico 3': tuple[0], 'Probabilidades 3': float(tuple[1])}, ignore_index=True)
 
-#st.write(filtered_df["topic_1"])
-
-
-#df_topicos = pd.DataFrame(filtered_df["topics_details"], columns=['Tópico', 'Probabilidade'])
-#df_topicos = df_topicos.explode('Tópico')
-#df_topicos['Probabilidade'] = df_topicos['Tópico'].apply(lambda x: x[1])
-#df_topicos['Tópico'] = df_topicos['Tópico'].apply(lambda x: x[0])
-
-#df_topicos = pd.DataFrame(filtered_df["topics_details"].tolist()[0], columns=["Tópico", "Probabilidade"])
-#st.write(df_topicos)
-#for i in range(num_of_topics):
-#    st.write(f'As palavras-chave para o tópico {similar_topics[i]} são:')
-#    df_topicos = pd.DataFrame(topic_model.get_topic(similar_topics[i]), columns=["Tópico", "Probabilidade"])
-#    st.write(df_topicos)
+combined_df = pd.concat([df_topicos1, df_topicos2, df_topicos3], axis=1)
+st.write(combined_df)
